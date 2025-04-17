@@ -1,112 +1,76 @@
-#Aseguramos el control de rutas en python
+
 import Definitions
-import plotly.graph_objects as go
-import plotly.express as px
-import pandas as pd
 import streamlit as st
-#from io import StringIO
+import pandas as pd
+import geopandas as gpd
+import folium
+import matplotlib.pyplot as plt
+from streamlit_folium import st_folium
 
-from src.back.ModelController import ModelController
+st.set_page_config(layout="wide", page_title="MaxEnt Probabilidad", page_icon="ðﾟﾧﾠ")
 
-### Setup and configuration
+st.title("ðﾟﾧﾠ Visualización Modelo MaxEnt")
 
-st.set_page_config(
-    layout="centered", page_title="Travel Insurance", page_icon="❄️"
-)
+with st.expander("ℹ️ Instrucciones"):
+    st.markdown("""
+    - Sube un archivo `.gpkg` o `.csv` que contenga los datos espaciales o tabulares.
+    - Si el archivo contiene una columna llamada `probabilidad`, se mostrará sobre el mapa con escala de color.
+    """)
 
-### Support functions
-
-def highlight_diff(row):
-    if row["Real"] != row["Predicción"]:
-        # return ["background-color: blue"] * len(row)
-        return ["background-color: #F5F5F5; color: black; font-weight: bold"] * len(row)
-    return [""] * len(row)
-
-def highlight_full_diff(row):
-    if row["Predicción SVM"] != row["Predicción RF"]:
-        # return ["background-color: blue"] * len(row)
-        return ["background-color: #F5F5F5; color: black; font-weight: bold"] * len(row)
-    return [""] * len(row)
-
-### My vars
-
-ctrl = ModelController()
-
-### My UI starting here
-
-with st.expander("Tip"):
-    f"""
-    Please upload your file, click on submit. We will provide you the results. 
-    """
-
-with st.form(key="my_form"):
+with st.form(key="form_carga_datos"):
 
     uploaded_file = st.file_uploader(
-        "Choose a CSV file", accept_multiple_files=False, type="csv"
+        "ðﾟﾓﾂ Sube tu archivo GPKG o CSV", accept_multiple_files=False, type=["gpkg", "csv"]
     )
 
-    submit_button = st.form_submit_button(label="Submit")
+    submit_button = st.form_submit_button(label="Cargar datos")
 
-    with st.spinner("Processing your information...."):
+    if submit_button and uploaded_file is not None:
+        st.success("✅ Archivo cargado correctamente")
+        st.write(f"Nombre del archivo: `{uploaded_file.name}`")
 
-        if submit_button and uploaded_file is not None:
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+            st.write("Vista previa del archivo CSV:")
+            st.dataframe(df.head())
+
+        elif uploaded_file.name.endswith(".gpkg"):
             try:
-                # Cargar la información del archivo csv
-                bytes_data = uploaded_file.getvalue()
-                st.write("Filename:", uploaded_file.name)
+                gdf = gpd.read_file(uploaded_file)
+                st.write("Vista previa del archivo GPKG:")
+                st.dataframe(gdf.head())
 
-                #Asegurar la información de entrada como pandas dataframe
-                input_df, is_valid = ctrl.load_input_data(bytes_data)
+                if gdf.geometry.geom_type.iloc[0] == "Point":
+                    center = [gdf.geometry.y.mean(), gdf.geometry.x.mean()]
+                else:
+                    center = gdf.geometry.centroid.iloc[0].coords[0][::-1]
 
-                if not is_valid:
-                    st.warning("File structure not valid", icon="⚠️")
+                mapa = folium.Map(location=center, zoom_start=10)
 
-                # Presentamos la inforamción de forma tabulada o pestañas
-                tab1, tab2, tab3, tab4, tab5 = st.tabs(["Input Data", "Stats", "SVM", "Random Forest", "Full View"])
+                # Escala de color
+                if "probabilidad" in gdf.columns:
+                    from branca.colormap import linear
+                    colormap = linear.Viridis_09.scale(gdf["probabilidad"].min(), gdf["probabilidad"].max())
+                    colormap.caption = "Probabilidad"
+                    colormap.add_to(mapa)
 
-                with tab1:
-                    # Los datos deben ser presentados si son válidos, en este caso que pertenezcan a un pandas dataframe
-                    if isinstance(input_df, pd.DataFrame) and not input_df.empty:
-                        st.subheader("🧩 My Input Data")
-                        st.dataframe(input_df)
-                        svc_df, rf_df, full_df = ctrl.predict()
-                    else:
-                        is_valid = False
+                    for _, row in gdf.iterrows():
+                        folium.CircleMarker(
+                            location=[row.geometry.y, row.geometry.x],
+                            radius=5,
+                            fill=True,
+                            fill_color=colormap(row["probabilidad"]),
+                            color=None,
+                            fill_opacity=0.8,
+                            popup=f"Probabilidad: {row['probabilidad']:.2f}"
+                        ).add_to(mapa)
+                else:
+                    folium.GeoJson(gdf).add_to(mapa)
 
-                with tab2:
-                    df_long = full_df.melt(id_vars=["Real"], value_vars=["Predicción RF", "Predicción SVM"],
-                                           var_name="Modelo", value_name="Predicción")
+                st.markdown("ðﾟﾗﾺ️ Mapa interactivo")
+                st_folium(mapa, width=1200, height=600)
 
-                    df_counts = df_long.groupby(["Modelo", "Predicción"]).size().reset_index(name="Cantidad")
-
-                    fig = px.bar(df_counts, x="Modelo", y="Cantidad", color="Predicción",
-                                 title="",
-                                 barmode="stack",  # "group" para barras separadas
-                                 text="Cantidad")
-
-                    # Mostrar en Streamlit
-                    st.subheader("📊 Model Predictions for class 'YES'")
-                    # st.plotly_chart(fig, use_container_width=True)
-                    st.plotly_chart(fig)
-                with tab3:
-                    svc_styled_df = svc_df.style.apply(highlight_diff, axis=1)
-                    st.subheader("🏿 Original data and predictions")
-                    # st.dataframe(svc_df)
-                    st.dataframe(svc_styled_df)
-                with tab4:
-                    rf_styled_df = rf_df.style.apply(highlight_diff, axis=1)
-                    st.subheader("🏿 Original data and predictions")
-                    # st.dataframe(svc_df)
-                    st.dataframe(rf_styled_df)
-                with tab5:
-                    full_styled_df = full_df.style.apply(highlight_full_diff, axis=1)
-                    st.subheader("🏿 Original data and predictions")
-                    # st.dataframe(full_df)
-                    st.dataframe(full_styled_df)
-                if is_valid:
-                    st.success("✅ Done!")
-            except:
-                st.error("Something happened", icon="🚨")
-        elif submit_button and uploaded_file is None:
-            st.error("You must choose a csv file", icon="🚨")
-
+            except Exception as e:
+                st.error(f"❌ Error leyendo GPKG: {e}")
+        else:
+            st.error("Formato de archivo no soportado. Usa GPKG o CSV.")
