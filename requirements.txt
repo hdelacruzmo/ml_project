@@ -6,3 +6,6 @@ plotly
 scikit-learn
 seaborn
 streamlit
+geopandas
+streamlit-folium
+folium
