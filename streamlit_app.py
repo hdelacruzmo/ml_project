@@ -46,7 +46,7 @@ with st.form(key="form_carga_datos"):
                 bounds = gdf.total_bounds  # [minx, miny, maxx, maxy]
                 center = [(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2]  # [lat, lon]
 
-                mapa = folium.Map(location=center, zoom_start=10)
+                mapa = folium.Map(location=center, zoom_start=10, tiles="OpenStreetMap")
 
                 # Escala de color
                 if "probabilidad" in gdf.columns and gdf.geometry.geom_type.isin(["Point"]).all():
