@@ -1,4 +1,3 @@
-
 import Definitions
 import streamlit as st
 import pandas as pd
@@ -7,9 +6,9 @@ import folium
 import matplotlib.pyplot as plt
 from streamlit_folium import st_folium
 
-st.set_page_config(layout="wide", page_title="MaxEnt Probabilidad", page_icon="ðﾟﾧﾠ")
+st.set_page_config(layout="wide", page_title="MaxEnt Probabilidad", page_icon="🧠")
 
-st.title("ðﾟﾧﾠ Visualización Modelo MaxEnt")
+st.title("🧠 Visualización Modelo MaxEnt")
 
 with st.expander("ℹ️ Instrucciones"):
     st.markdown("""
@@ -20,7 +19,7 @@ with st.expander("ℹ️ Instrucciones"):
 with st.form(key="form_carga_datos"):
 
     uploaded_file = st.file_uploader(
-        "ðﾟﾓﾂ Sube tu archivo GPKG o CSV", accept_multiple_files=False, type=["gpkg", "csv"]
+        "📂 Sube tu archivo GPKG o CSV", accept_multiple_files=False, type=["gpkg", "csv"]
     )
 
     submit_button = st.form_submit_button(label="Cargar datos")
@@ -40,15 +39,17 @@ with st.form(key="form_carga_datos"):
                 st.write("Vista previa del archivo GPKG:")
                 st.dataframe(gdf.head())
 
-                if gdf.geometry.geom_type.iloc[0] == "Point":
-                    center = [gdf.geometry.y.mean(), gdf.geometry.x.mean()]
-                else:
-                    center = gdf.geometry.centroid.iloc[0].coords[0][::-1]
+                # Filtrar geometrías válidas
+                gdf = gdf[gdf.geometry.notnull() & ~gdf.geometry.is_empty]
+
+                # Calcular centro del mapa como el centro del bounds
+                bounds = gdf.total_bounds  # [minx, miny, maxx, maxy]
+                center = [(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2]  # [lat, lon]
 
                 mapa = folium.Map(location=center, zoom_start=10)
 
                 # Escala de color
-                if "probabilidad" in gdf.columns:
+                if "probabilidad" in gdf.columns and gdf.geometry.geom_type.isin(["Point"]).all():
                     from branca.colormap import linear
                     colormap = linear.Viridis_09.scale(gdf["probabilidad"].min(), gdf["probabilidad"].max())
                     colormap.caption = "Probabilidad"
@@ -67,7 +68,7 @@ with st.form(key="form_carga_datos"):
                 else:
                     folium.GeoJson(gdf).add_to(mapa)
 
-                st.markdown("ðﾟﾗﾺ️ Mapa interactivo")
+                st.markdown("🗺️ Mapa interactivo")
                 st_folium(mapa, width=1200, height=600)
 
             except Exception as e:
