@@ -47,7 +47,7 @@ with st.form(key="form_carga_datos"):
 
                 # Coordenadas fijas definidas por el usuario
                 center = [7.674, -75.067]
-                mapa = folium.Map(location=center, zoom_start=4, tiles="OpenStreetMap")
+                mapa = folium.Map(location=center, zoom_start=12, tiles="OpenStreetMap")
 
                 # Si es tipo punto y tiene probabilidad
                 if "probabilidad" in gdf.columns and gdf.geometry.geom_type.isin(["Point"]).all():
