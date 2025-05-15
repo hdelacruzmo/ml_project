@@ -43,10 +43,12 @@ with st.form(key="form_carga_datos"):
                 gdf = gdf[gdf.geometry.notnull() & ~gdf.geometry.is_empty]
 
                 # Calcular centro del mapa como el centro del bounds
-                bounds = gdf.total_bounds  # [minx, miny, maxx, maxy]
-                center = [(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2]  # [lat, lon]
+                # Coordenadas manuales definidas por el usuario
+                center = [7.674, -75.067]
 
-                mapa = folium.Map(location=center, zoom_start=10, tiles="OpenStreetMap")
+
+                mapa = folium.Map(location=center, zoom_start=12, tiles="OpenStreetMap")
+                
 
                 # Escala de color
                 if "probabilidad" in gdf.columns and gdf.geometry.geom_type.isin(["Point"]).all():
