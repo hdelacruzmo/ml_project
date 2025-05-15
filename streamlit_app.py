@@ -5,6 +5,8 @@ import geopandas as gpd
 import folium
 import matplotlib.pyplot as plt
 from streamlit_folium import st_folium
+from folium.plugins import MarkerCluster
+from branca.colormap import linear
 
 st.set_page_config(layout="wide", page_title="MaxEnt Probabilidad", page_icon="🧠")
 
@@ -14,6 +16,7 @@ with st.expander("ℹ️ Instrucciones"):
     st.markdown("""
     - Sube un archivo `.gpkg` o `.csv` que contenga los datos espaciales o tabulares.
     - Si el archivo contiene una columna llamada `probabilidad`, se mostrará sobre el mapa con escala de color.
+    - Si hay muchos puntos, se mostrará solo una muestra para mejorar el rendimiento.
     """)
 
 with st.form(key="form_carga_datos"):
@@ -42,32 +45,41 @@ with st.form(key="form_carga_datos"):
                 # Filtrar geometrías válidas
                 gdf = gdf[gdf.geometry.notnull() & ~gdf.geometry.is_empty]
 
-                # Calcular centro del mapa como el centro del bounds
-                # Coordenadas manuales definidas por el usuario
+                # Coordenadas fijas definidas por el usuario
                 center = [7.674, -75.067]
+                mapa = folium.Map(location=center, zoom_start=10, tiles="OpenStreetMap")
 
-
-                mapa = folium.Map(location=center, zoom_start=6, tiles="OpenStreetMap")
-                
-
-                # Escala de color
+                # Si es tipo punto y tiene probabilidad
                 if "probabilidad" in gdf.columns and gdf.geometry.geom_type.isin(["Point"]).all():
-                    from branca.colormap import linear
+
+                    # Escala de color
                     colormap = linear.Viridis_09.scale(gdf["probabilidad"].min(), gdf["probabilidad"].max())
                     colormap.caption = "Probabilidad"
                     colormap.add_to(mapa)
 
-                    for _, row in gdf.iterrows():
+                    # Reducir tamaño si es muy grande
+                    if len(gdf) > 500:
+                        gdf_muestra = gdf.sample(n=500, random_state=42)
+                        st.warning("⚠️ Mostrando solo 500 puntos por rendimiento.")
+                    else:
+                        gdf_muestra = gdf
+
+                    # Crear clúster de marcadores
+                    cluster = MarkerCluster().add_to(mapa)
+
+                    for _, row in gdf_muestra.iterrows():
                         folium.CircleMarker(
                             location=[row.geometry.y, row.geometry.x],
-                            radius=5,
+                            radius=4,
                             fill=True,
                             fill_color=colormap(row["probabilidad"]),
                             color=None,
-                            fill_opacity=0.8,
-                            popup=f"Probabilidad: {row['probabilidad']:.2f}"
-                        ).add_to(mapa)
+                            fill_opacity=0.7,
+                        ).add_to(cluster)
+
                 else:
+                    # Si no es punto, simplificar geometría y agregar como GeoJson
+                    gdf["geometry"] = gdf["geometry"].simplify(0.0005, preserve_topology=True)
                     folium.GeoJson(gdf).add_to(mapa)
 
                 st.markdown("🗺️ Mapa interactivo")
@@ -77,3 +89,4 @@ with st.form(key="form_carga_datos"):
                 st.error(f"❌ Error leyendo GPKG: {e}")
         else:
             st.error("Formato de archivo no soportado. Usa GPKG o CSV.")
+
