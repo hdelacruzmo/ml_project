@@ -47,7 +47,7 @@ with st.form(key="form_carga_datos"):
                 center = [7.674, -75.067]
 
 
-                mapa = folium.Map(location=center, zoom_start=20, tiles="OpenStreetMap")
+                mapa = folium.Map(location=center, zoom_start=16, tiles="OpenStreetMap")
                 
 
                 # Escala de color
