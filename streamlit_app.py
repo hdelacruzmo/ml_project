@@ -3,18 +3,17 @@ import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import folium
+from shapely.geometry import Polygon
 from streamlit_folium import st_folium
-from shapely.geometry import MultiPoint
 
-st.set_page_config(layout="wide", page_title="MaxEnt - Contorno", page_icon="🧠")
+st.set_page_config(layout="wide", page_title="MaxEnt Bounding Box", page_icon="🧠")
 
-st.title("🧠 Visualización de Contorno de Capa GPKG")
+st.title("🧠 Área Aproximada del Archivo Cargado")
 
 with st.expander("ℹ️ Instrucciones"):
     st.markdown("""
-    - Sube un archivo `.gpkg` con geometrías tipo punto.
-    - Se mostrará únicamente el **contorno general** (envolvente convexa) del conjunto de puntos.
-    - Esto mejora el rendimiento y permite navegación fluida en el mapa.
+    - Esta visualización muestra un polígono rectangular que representa el área cubierta por los datos del archivo `.gpkg` cargado.
+    - No se cargan puntos ni polígonos pesados, lo que mejora notablemente el rendimiento.
     """)
 
 with st.form(key="form_carga_datos"):
@@ -23,37 +22,42 @@ with st.form(key="form_carga_datos"):
         "📂 Sube tu archivo GPKG", accept_multiple_files=False, type=["gpkg"]
     )
 
-    submit_button = st.form_submit_button(label="Cargar datos")
+    submit_button = st.form_submit_button(label="Cargar archivo")
 
     if submit_button and uploaded_file is not None:
-        st.success("✅ Archivo cargado correctamente")
-        st.write(f"Nombre del archivo: `{uploaded_file.name}`")
-
         try:
             gdf = gpd.read_file(uploaded_file)
-            st.write("Vista previa del archivo GPKG:")
+            st.write("Vista previa del archivo:")
             st.dataframe(gdf.head())
 
-            # Filtrar geometrías válidas
+            # Asegurarse de trabajar solo con geometrías válidas
             gdf = gdf[gdf.geometry.notnull() & ~gdf.geometry.is_empty]
 
-            # Coordenadas fijas (si prefieres usar cálculo dinámico, usa total_bounds)
-            center = [7.674, -75.067]
+            # Extraer límites del bounding box
+            bounds = gdf.total_bounds  # [minx, miny, maxx, maxy]
+            minx, miny, maxx, maxy = bounds
+
+            # Crear polígono rectangular (bounding box)
+            rectangle = Polygon([
+                (minx, miny),
+                (minx, maxy),
+                (maxx, maxy),
+                (maxx, miny),
+                (minx, miny)
+            ])
+            gdf_rect = gpd.GeoDataFrame(geometry=[rectangle], crs=gdf.crs)
+
+            # Calcular centro aproximado para el mapa
+            center = [(miny + maxy) / 2, (minx + maxx) / 2]
+
+            # Crear mapa y agregar rectángulo
             mapa = folium.Map(location=center, zoom_start=10, tiles="OpenStreetMap")
+            folium.GeoJson(gdf_rect, name="Bounding Box", tooltip="Área cubierta").add_to(mapa)
 
-            # Construir envolvente convexa del conjunto de puntos
-            puntos = gdf.geometry.values
-            contorno = MultiPoint(puntos).convex_hull
-            gdf_contorno = gpd.GeoDataFrame(geometry=[contorno], crs=gdf.crs)
-
-            # Agregar el contorno como capa GeoJson
-            folium.GeoJson(gdf_contorno, name="Contorno", tooltip="Contorno de puntos").add_to(mapa)
-
-            # Mostrar en Streamlit
-            st.markdown("🗺️ Contorno del conjunto de puntos")
+            st.markdown("🗺️ Área aproximada del archivo:")
             st_folium(mapa, width=1200, height=600)
 
         except Exception as e:
-            st.error(f"❌ Error procesando el archivo: {e}")
+            st.error(f"❌ Error leyendo el archivo: {e}")
     elif submit_button:
-        st.warning("Por favor selecciona un archivo .gpkg para continuar.")
+        st.warning("Debes seleccionar un archivo .gpkg para continuar.")
