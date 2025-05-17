@@ -57,7 +57,26 @@ with st.form(key="form_carga_datos"):
             center = [(miny + maxy) / 2, ((minx + maxx) / 2)+1.5]
 
             # Crear mapa y agregar rectángulo
-            mapa = folium.Map(location=center, zoom_start=8, tiles="OpenStreetMap")
+            
+            # Crea mapa sin tiles base inicial
+            mapa = folium.Map(location=center, zoom_start=8, tiles=None)
+            
+            # Añade capa base OpenStreetMap
+            folium.TileLayer("OpenStreetMap", name="Mapa Base").add_to(mapa)
+            
+            # Añade capa base tipo satélite (Esri World Imagery)
+            folium.TileLayer(
+                tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                attr="Esri",
+                name="Satélite (Esri World Imagery)",
+                overlay=False,
+                control=True
+            ).add_to(mapa)
+            
+            # Añadir control de capas (para alternar)
+            folium.LayerControl(collapsed=False).add_to(mapa)
+
+            
             folium.GeoJson(gdf_rect, name="Bounding Box", tooltip="Área cubierta").add_to(mapa)
 
             st.markdown("🗺️ Área aproximada del archivo:")
