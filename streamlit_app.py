@@ -68,19 +68,12 @@ with st.form(key="form_carga_datos"):
                 overlay=False,
                 control=True
             ).add_to(mapa)
-            
-            # Satélite híbrido (satélite + etiquetas)
-            folium.TileLayer(
-                tiles="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-                attr="Esri",
-                name="Satélite Híbrido (Fondo)",
-                overlay=False
-            ).add_to(mapa)
-            
+
+            #Etiquetas
             folium.TileLayer(
                 tiles="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
                 attr="Esri",
-                name="Nombres del Territorio (Etiquetas)",
+                name="Nombres del Territorio",
                 overlay=True,
                 control=True
             ).add_to(mapa)
