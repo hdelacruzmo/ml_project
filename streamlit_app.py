@@ -54,7 +54,7 @@ with st.form(key="form_carga_datos"):
             gdf_rect = gpd.GeoDataFrame(geometry=[rectangle], crs=gdf.crs)
 
             # Calcular centro aproximado para el mapa
-            center = [(miny + maxy) / 2, ((minx + maxx) / 2)+500]
+            center = [(miny + maxy) / 2, ((minx + maxx) / 2)+1]
 
             # Crear mapa y agregar rectángulo
             mapa = folium.Map(location=center, zoom_start=8, tiles="OpenStreetMap")
