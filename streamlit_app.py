@@ -55,10 +55,12 @@ with st.form(key="form_carga_datos"):
             gdf_rect = gpd.GeoDataFrame(geometry=[rectangle], crs=gdf.crs)
 
             # Crear mapa sin tiles base inicial
-            mapa = folium.Map(location=[(miny + maxy) / 2, ((minx + maxx) / 2)-1.5], zoom_start=8, tiles=None)
-
-            # Añadir capas base
+            mapa = folium.Map(location=[(miny + maxy) / 2, (minx + maxx) / 2], zoom_start=8, tiles=None)
+            
+            # Capas base
             folium.TileLayer("OpenStreetMap", name="Mapa Base").add_to(mapa)
+            
+            # Satélite puro
             folium.TileLayer(
                 tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
                 attr="Esri",
@@ -66,36 +68,35 @@ with st.form(key="form_carga_datos"):
                 overlay=False,
                 control=True
             ).add_to(mapa)
-
-            # Capa base híbrida: imágenes + nombres
+            
+            # Satélite híbrido (satélite + etiquetas)
             folium.TileLayer(
                 tiles="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
                 attr="Esri",
-                name="Satélite (World Imagery)",
+                name="Satélite Híbrido (Fondo)",
                 overlay=False
             ).add_to(mapa)
             
             folium.TileLayer(
                 tiles="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
                 attr="Esri",
-                name="Nombres (Etiquetas)",
+                name="Nombres del Territorio (Etiquetas)",
                 overlay=True,
                 control=True
             ).add_to(mapa)
-
-
-            # Añadir bounding box
+            
+            # Añadir el bounding box
             folium.GeoJson(gdf_rect, name="Bounding Box", tooltip="Área cubierta").add_to(mapa)
-
-            # Centrado automático según los bordes
+            
+            # Centrar automáticamente el mapa en el polígono
             mapa.fit_bounds([[miny, minx], [maxy, maxx]])
-
+            
             # Control de capas
             folium.LayerControl(collapsed=False).add_to(mapa)
+            
+            # Mostrar el mapa adaptado al ancho de pantalla
+            st_folium(mapa, width='100%', height=600)
 
-            # Mostrar el mapa
-            st.markdown("🗺️ Área aproximada del archivo:")
-            st_folium(mapa, width=1200, height=600)
 
         except Exception as e:
             st.error(f"❌ Error leyendo el archivo: {e}")
