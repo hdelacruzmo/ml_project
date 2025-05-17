@@ -95,3 +95,52 @@ with st.form(key="form_carga_datos"):
             st.error(f"❌ Error leyendo el archivo: {e}")
     elif submit_button:
         st.warning("Debes seleccionar un archivo .gpkg para continuar.")
+
+from src.back.ModelController import ModelController
+
+ctrl = ModelController()
+
+with st.form(key="form_prediccion"):
+
+    uploaded_file = st.file_uploader(
+        "📂 Sube tu archivo CSV con datos de entrada", type=["csv"]
+    )
+    submit_button = st.form_submit_button("Ejecutar predicciones")
+
+    if submit_button and uploaded_file is not None:
+        try:
+            bytes_data = uploaded_file.getvalue()
+            input_df, is_valid = ctrl.load_input_data(bytes_data)
+
+            if not is_valid:
+                st.error("⚠️ Las columnas del CSV no coinciden con lo esperado.")
+            else:
+                rf_df, maxent_df, full_df = ctrl.predict()
+
+                tab1, tab2, tab3, tab4, tab5 = st.tabs([
+                    "Input Data", "Stats", "Random Forest", "MaxEnt", "Full View"
+                ])
+
+                with tab1:
+                    st.subheader("🧩 Datos de entrada")
+                    st.dataframe(input_df)
+
+                with tab2:
+                    st.subheader("📊 Estadísticas del dataset")
+                    st.dataframe(input_df.describe())
+
+                with tab3:
+                    st.subheader("🌲 Random Forest")
+                    st.dataframe(rf_df)
+
+                with tab4:
+                    st.subheader("🧠 MaxEnt (Regresión Logística)")
+                    st.dataframe(maxent_df)
+
+                with tab5:
+                    st.subheader("🔍 Comparación entre modelos")
+                    st.dataframe(full_df)
+
+        except Exception as e:
+            st.error(f"❌ Error durante el procesamiento: {e}")
+
