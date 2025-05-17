@@ -55,7 +55,7 @@ with st.form(key="form_carga_datos"):
             gdf_rect = gpd.GeoDataFrame(geometry=[rectangle], crs=gdf.crs)
 
             # Crear mapa sin tiles base inicial
-            mapa = folium.Map(location=[(miny + maxy) / 2, ((minx + maxx) / 2)+1.5], zoom_start=8, tiles=None)
+            mapa = folium.Map(location=[(miny + maxy) / 2, ((minx + maxx) / 2)-1.5], zoom_start=8, tiles=None)
 
             # Añadir capas base
             folium.TileLayer("OpenStreetMap", name="Mapa Base").add_to(mapa)
