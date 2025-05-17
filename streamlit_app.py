@@ -67,6 +67,23 @@ with st.form(key="form_carga_datos"):
                 control=True
             ).add_to(mapa)
 
+            # Capa base híbrida: imágenes + nombres
+            folium.TileLayer(
+                tiles="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                attr="Esri",
+                name="Satélite (World Imagery)",
+                overlay=False
+            ).add_to(mapa)
+            
+            folium.TileLayer(
+                tiles="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+                attr="Esri",
+                name="Nombres (Etiquetas)",
+                overlay=True,
+                control=True
+            ).add_to(mapa)
+
+
             # Añadir bounding box
             folium.GeoJson(gdf_rect, name="Bounding Box", tooltip="Área cubierta").add_to(mapa)
 
