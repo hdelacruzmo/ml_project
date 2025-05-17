@@ -57,7 +57,7 @@ with st.form(key="form_carga_datos"):
             center = [(miny + maxy) / 2, (minx + maxx) / 2]
 
             # Crear mapa y agregar rectángulo
-            mapa = folium.Map(location=center, zoom_start=10, tiles="OpenStreetMap")
+            mapa = folium.Map(location=center, zoom_start=8, tiles="OpenStreetMap")
             folium.GeoJson(gdf_rect, name="Bounding Box", tooltip="Área cubierta").add_to(mapa)
 
             st.markdown("🗺️ Área aproximada del archivo:")
