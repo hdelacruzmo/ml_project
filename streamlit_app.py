@@ -86,7 +86,7 @@ with st.form(key="form_carga_datos"):
             ).add_to(mapa)
             
             # Añadir el bounding box
-            folium.GeoJson(gdf_rect, name="Bounding Box", tooltip="Área cubierta").add_to(mapa)
+            folium.GeoJson(gdf_rect, name="Área de Estudio", tooltip="Área cubierta").add_to(mapa)
             
             # Centrar automáticamente el mapa en el polígono
             mapa.fit_bounds([[miny, minx], [maxy, maxx]])
