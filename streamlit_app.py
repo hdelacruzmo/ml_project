@@ -3,26 +3,24 @@ import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import folium
-import matplotlib.pyplot as plt
 from streamlit_folium import st_folium
-from folium.plugins import MarkerCluster
-from branca.colormap import linear
+from shapely.geometry import MultiPoint
 
-st.set_page_config(layout="wide", page_title="MaxEnt Probabilidad", page_icon="🧠")
+st.set_page_config(layout="wide", page_title="MaxEnt - Contorno", page_icon="🧠")
 
-st.title("🧠 Visualización Modelo MaxEnt")
+st.title("🧠 Visualización de Contorno de Capa GPKG")
 
 with st.expander("ℹ️ Instrucciones"):
     st.markdown("""
-    - Sube un archivo `.gpkg` o `.csv` que contenga los datos espaciales o tabulares.
-    - Si el archivo contiene una columna llamada `probabilidad`, se mostrará sobre el mapa con escala de color.
-    - Si hay muchos puntos, se mostrará solo una muestra para mejorar el rendimiento.
+    - Sube un archivo `.gpkg` con geometrías tipo punto.
+    - Se mostrará únicamente el **contorno general** (envolvente convexa) del conjunto de puntos.
+    - Esto mejora el rendimiento y permite navegación fluida en el mapa.
     """)
 
 with st.form(key="form_carga_datos"):
 
     uploaded_file = st.file_uploader(
-        "📂 Sube tu archivo GPKG o CSV", accept_multiple_files=False, type=["gpkg", "csv"]
+        "📂 Sube tu archivo GPKG", accept_multiple_files=False, type=["gpkg"]
     )
 
     submit_button = st.form_submit_button(label="Cargar datos")
@@ -31,62 +29,31 @@ with st.form(key="form_carga_datos"):
         st.success("✅ Archivo cargado correctamente")
         st.write(f"Nombre del archivo: `{uploaded_file.name}`")
 
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-            st.write("Vista previa del archivo CSV:")
-            st.dataframe(df.head())
+        try:
+            gdf = gpd.read_file(uploaded_file)
+            st.write("Vista previa del archivo GPKG:")
+            st.dataframe(gdf.head())
 
-        elif uploaded_file.name.endswith(".gpkg"):
-            try:
-                gdf = gpd.read_file(uploaded_file)
-                st.write("Vista previa del archivo GPKG:")
-                st.dataframe(gdf.head())
+            # Filtrar geometrías válidas
+            gdf = gdf[gdf.geometry.notnull() & ~gdf.geometry.is_empty]
 
-                # Filtrar geometrías válidas
-                gdf = gdf[gdf.geometry.notnull() & ~gdf.geometry.is_empty]
+            # Coordenadas fijas (si prefieres usar cálculo dinámico, usa total_bounds)
+            center = [7.674, -75.067]
+            mapa = folium.Map(location=center, zoom_start=10, tiles="OpenStreetMap")
 
-                # Coordenadas fijas definidas por el usuario
-                center = [7.674, -75.067]
-                mapa = folium.Map(location=center, zoom_start=12, tiles="OpenStreetMap")
+            # Construir envolvente convexa del conjunto de puntos
+            puntos = gdf.geometry.values
+            contorno = MultiPoint(puntos).convex_hull
+            gdf_contorno = gpd.GeoDataFrame(geometry=[contorno], crs=gdf.crs)
 
-                # Si es tipo punto y tiene probabilidad
-                if "probabilidad" in gdf.columns and gdf.geometry.geom_type.isin(["Point"]).all():
+            # Agregar el contorno como capa GeoJson
+            folium.GeoJson(gdf_contorno, name="Contorno", tooltip="Contorno de puntos").add_to(mapa)
 
-                    # Escala de color
-                    colormap = linear.Viridis_09.scale(gdf["probabilidad"].min(), gdf["probabilidad"].max())
-                    colormap.caption = "Probabilidad"
-                    colormap.add_to(mapa)
+            # Mostrar en Streamlit
+            st.markdown("🗺️ Contorno del conjunto de puntos")
+            st_folium(mapa, width=1200, height=600)
 
-                    # Reducir tamaño si es muy grande
-                    if len(gdf) > 500:
-                        gdf_muestra = gdf.sample(n=500, random_state=42)
-                        st.warning("⚠️ Mostrando solo 500 puntos por rendimiento.")
-                    else:
-                        gdf_muestra = gdf
-
-                    # Crear clúster de marcadores
-                    cluster = MarkerCluster().add_to(mapa)
-
-                    for _, row in gdf_muestra.iterrows():
-                        folium.CircleMarker(
-                            location=[row.geometry.y, row.geometry.x],
-                            radius=4,
-                            fill=True,
-                            fill_color=colormap(row["probabilidad"]),
-                            color=None,
-                            fill_opacity=0.7,
-                        ).add_to(cluster)
-
-                else:
-                    # Si no es punto, simplificar geometría y agregar como GeoJson
-                    gdf["geometry"] = gdf["geometry"].simplify(0.0005, preserve_topology=True)
-                    folium.GeoJson(gdf).add_to(mapa)
-
-                st.markdown("🗺️ Mapa interactivo")
-                st_folium(mapa, width=1200, height=600)
-
-            except Exception as e:
-                st.error(f"❌ Error leyendo GPKG: {e}")
-        else:
-            st.error("Formato de archivo no soportado. Usa GPKG o CSV.")
-
+        except Exception as e:
+            st.error(f"❌ Error procesando el archivo: {e}")
+    elif submit_button:
+        st.warning("Por favor selecciona un archivo .gpkg para continuar.")
