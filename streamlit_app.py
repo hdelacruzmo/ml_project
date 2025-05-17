@@ -14,6 +14,7 @@ with st.expander("ℹ️ Instrucciones"):
     st.markdown("""
     - Esta visualización muestra un polígono rectangular que representa el área cubierta por los datos del archivo `.gpkg` cargado.
     - No se cargan puntos ni polígonos pesados, lo que mejora notablemente el rendimiento.
+    - Puedes cambiar entre mapa base y vista satelital.
     """)
 
 with st.form(key="form_carga_datos"):
@@ -28,22 +29,22 @@ with st.form(key="form_carga_datos"):
         try:
             gdf = gpd.read_file(uploaded_file)
 
-            # Reproyectar de EPSG:9377 a EPSG:4326 si es necesario
+            # Reproyectar a EPSG:4326 si es necesario
             if gdf.crs and gdf.crs.to_epsg() != 4326:
                 st.info(f"📐 Reproyectando desde {gdf.crs} a EPSG:4326 para visualización.")
                 gdf = gdf.to_crs(epsg=4326)
-    
+
             st.write("Vista previa del archivo:")
             st.dataframe(gdf.head())
 
-            # Asegurarse de trabajar solo con geometrías válidas
+            # Filtrar geometrías válidas
             gdf = gdf[gdf.geometry.notnull() & ~gdf.geometry.is_empty]
 
-            # Extraer límites del bounding box
+            # Extraer bounding box
             bounds = gdf.total_bounds  # [minx, miny, maxx, maxy]
             minx, miny, maxx, maxy = bounds
 
-            # Crear polígono rectangular (bounding box)
+            # Crear polígono rectangular
             rectangle = Polygon([
                 (minx, miny),
                 (minx, maxy),
@@ -53,18 +54,11 @@ with st.form(key="form_carga_datos"):
             ])
             gdf_rect = gpd.GeoDataFrame(geometry=[rectangle], crs=gdf.crs)
 
-            # Calcular centro aproximado para el mapa
-            center = [(miny + maxy) / 2, ((minx + maxx) / 2)+1.5]
+            # Crear mapa sin tiles base inicial
+            mapa = folium.Map(location=[(miny + maxy) / 2, (minx + maxx) / 2], zoom_start=8, tiles=None)
 
-            # Crear mapa y agregar rectángulo
-            
-            # Crea mapa sin tiles base inicial
-            mapa = folium.Map(location=center, zoom_start=8, tiles=None)
-            
-            # Añade capa base OpenStreetMap
+            # Añadir capas base
             folium.TileLayer("OpenStreetMap", name="Mapa Base").add_to(mapa)
-            
-            # Añade capa base tipo satélite (Esri World Imagery)
             folium.TileLayer(
                 tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
                 attr="Esri",
@@ -72,13 +66,17 @@ with st.form(key="form_carga_datos"):
                 overlay=False,
                 control=True
             ).add_to(mapa)
-            
-            # Añadir control de capas (para alternar)
-            folium.LayerControl(collapsed=False).add_to(mapa)
 
-            
+            # Añadir bounding box
             folium.GeoJson(gdf_rect, name="Bounding Box", tooltip="Área cubierta").add_to(mapa)
 
+            # Centrado automático según los bordes
+            mapa.fit_bounds([[miny, minx], [maxy, maxx]])
+
+            # Control de capas
+            folium.LayerControl(collapsed=False).add_to(mapa)
+
+            # Mostrar el mapa
             st.markdown("🗺️ Área aproximada del archivo:")
             st_folium(mapa, width=1200, height=600)
 
