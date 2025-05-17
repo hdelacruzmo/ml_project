@@ -27,6 +27,12 @@ with st.form(key="form_carga_datos"):
     if submit_button and uploaded_file is not None:
         try:
             gdf = gpd.read_file(uploaded_file)
+
+            # Reproyectar de EPSG:9377 a EPSG:4326 si es necesario
+            if gdf.crs and gdf.crs.to_epsg() != 4326:
+                st.info(f"📐 Reproyectando desde {gdf.crs} a EPSG:4326 para visualización.")
+                gdf = gdf.to_crs(epsg=4326)
+    
             st.write("Vista previa del archivo:")
             st.dataframe(gdf.head())
 
